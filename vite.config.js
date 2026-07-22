@@ -17,5 +17,9 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: true,
+  },
+  // Environment variables for production
+  define: {
+    'process.env.VITE_API_URL': JSON.stringify('https://raffcodes.tech/api')
   }
 })
