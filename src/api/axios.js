@@ -1,6 +1,7 @@
 import axios from 'axios';
 
-const API_URL = 'https://raffcodes.tech/api';
+// Use environment variable for API URL
+const API_URL = import.meta.env.VITE_API_URL || 'https://raffcodes.tech/api';
 
 const api = axios.create({
   baseURL: API_URL,
