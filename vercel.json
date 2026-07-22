@@ -1,9 +1,9 @@
 {
-  "buildCommand": "npm run build",
+  "buildCommand": "node vercel-build.js",
   "outputDirectory": "dist",
   "devCommand": "npm run dev",
   "installCommand": "npm install",
-  "framework": "vite",
+  "framework": null,
   "rewrites": [
     {
       "source": "/(.*)",
@@ -12,5 +12,11 @@
   ],
   "env": {
     "VITE_API_URL": "https://raffcodes.tech/api"
-  }
+  },
+  "builds": [
+    {
+      "src": "vercel-build.js",
+      "use": "@vercel/node"
+    }
+  ]
 }
