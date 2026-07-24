@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
+import { getCounties, getCountyByName } from 'kenya-locations';
 
 function HomePage() {
   const navigate = useNavigate();
+  const { user, isAuthenticated, isAdmin, isAgent, isCustomer, logout } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [propertyType, setPropertyType] = useState('');
   const [featuredProperties, setFeaturedProperties] = useState([]);
@@ -10,6 +13,7 @@ function HomePage() {
   const [countyImages, setCountyImages] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -54,6 +58,11 @@ function HomePage() {
     navigate(`/properties?${params.toString()}`);
   };
 
+  const handleLogout = () => {
+    logout();
+    navigate('/');
+  };
+
   const totalProperties = featuredProperties.length;
   const totalCounties = counties.length;
   const totalUnits = featuredProperties.reduce((sum, b) => sum + (b.total_units || b.units?.length || 0), 0);
@@ -62,11 +71,107 @@ function HomePage() {
   );
   const totalOccupied = totalUnits - totalVacant;
 
+  const getCountyInfo = (countyName) => {
+    try {
+      return getCountyByName(countyName);
+    } catch {
+      return null;
+    }
+  };
+
   const defaultImages = {
     'Nairobi': 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=600&h=400&fit=crop',
     'Mombasa': 'https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=600&h=400&fit=crop',
     'Kiambu': 'https://images.unsplash.com/photo-1484154218962-a197022b5858?w=600&h=400&fit=crop',
     'kajiado': 'https://images.unsplash.com/photo-1516026672322-bc52d61a55d5?w=600&h=400&fit=crop',
+  };
+
+  // Render navbar based on authentication and role
+  const renderNavbar = () => {
+    // Public/Not logged in
+    if (!isAuthenticated) {
+      return (
+        <div className="flex items-center space-x-4">
+          <Link to="/properties" className="text-gray-700 hover:text-blue-600 transition">Properties</Link>
+          <Link to="/login" className="text-gray-700 hover:text-blue-600 transition">Login</Link>
+          <Link to="/register" className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition shadow-md">
+            <i className="fas fa-user-plus mr-2"></i> Register
+          </Link>
+        </div>
+      );
+    }
+
+    // Customer logged in
+    if (isCustomer) {
+      return (
+        <div className="flex items-center space-x-4">
+          <span className="text-sm text-gray-600">
+            <i className="fas fa-user mr-1"></i> {user?.full_name || 'Customer'}
+          </span>
+          <Link to="/properties" className="text-gray-700 hover:text-blue-600 transition">Properties</Link>
+          <Link to="/profile/inquiries" className="text-gray-700 hover:text-blue-600 transition">My Inquiries</Link>
+          <Link to="/profile" className="text-gray-700 hover:text-blue-600 transition">Profile</Link>
+          <button 
+            onClick={handleLogout}
+            className="text-red-600 hover:text-red-800 transition font-semibold"
+          >
+            <i className="fas fa-sign-out-alt mr-1"></i> Logout
+          </button>
+        </div>
+      );
+    }
+
+    // Agent logged in
+    if (isAgent) {
+      return (
+        <div className="flex items-center space-x-4">
+          <span className="text-sm text-gray-600">
+            <i className="fas fa-user-tie mr-1"></i> {user?.full_name || 'Agent'}
+          </span>
+          <Link to="/dashboard" className="text-gray-700 hover:text-blue-600 transition">Dashboard</Link>
+          <Link to="/properties" className="text-gray-700 hover:text-blue-600 transition">Properties</Link>
+          <Link to="/dashboard/buildings" className="text-gray-700 hover:text-blue-600 transition">My Buildings</Link>
+          <Link to="/dashboard/inquiries" className="text-gray-700 hover:text-blue-600 transition">Inquiries</Link>
+          <button 
+            onClick={handleLogout}
+            className="text-red-600 hover:text-red-800 transition font-semibold"
+          >
+            <i className="fas fa-sign-out-alt mr-1"></i> Logout
+          </button>
+        </div>
+      );
+    }
+
+    // Admin logged in
+    if (isAdmin) {
+      return (
+        <div className="flex items-center space-x-4">
+          <span className="text-sm text-gray-600">
+            <i className="fas fa-user-shield mr-1"></i> {user?.full_name || 'Admin'}
+          </span>
+          <Link to="/admin" className="text-gray-700 hover:text-blue-600 transition">Admin Panel</Link>
+          <Link to="/admin/agents" className="text-gray-700 hover:text-blue-600 transition">Agents</Link>
+          <Link to="/properties" className="text-gray-700 hover:text-blue-600 transition">Properties</Link>
+          <button 
+            onClick={handleLogout}
+            className="text-red-600 hover:text-red-800 transition font-semibold"
+          >
+            <i className="fas fa-sign-out-alt mr-1"></i> Logout
+          </button>
+        </div>
+      );
+    }
+
+    // Fallback
+    return (
+      <div className="flex items-center space-x-4">
+        <Link to="/properties" className="text-gray-700 hover:text-blue-600 transition">Properties</Link>
+        <Link to="/login" className="text-gray-700 hover:text-blue-600 transition">Login</Link>
+        <Link to="/register" className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition shadow-md">
+          <i className="fas fa-user-plus mr-2"></i> Register
+        </Link>
+      </div>
+    );
   };
 
   return (
@@ -86,35 +191,100 @@ function HomePage() {
             />
             <span className="text-2xl font-bold text-blue-600">Mynyumba</span>
           </Link>
-          <div className="flex items-center space-x-4">
-            <Link to="/properties" className="text-gray-700 hover:text-blue-600 transition">Properties</Link>
-            <Link to="/login" className="text-gray-700 hover:text-blue-600 transition">Login</Link>
-            <Link to="/register" className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition shadow-md">
-              <i className="fas fa-user-plus mr-2"></i> Register
-            </Link>
+          
+          {/* Desktop Navigation */}
+          <div className="hidden md:flex">
+            {renderNavbar()}
           </div>
+
+          {/* Mobile Menu Button */}
+          <button 
+            className="md:hidden text-gray-700 hover:text-blue-600"
+            onClick={() => setShowMobileMenu(!showMobileMenu)}
+          >
+            <i className={`fas ${showMobileMenu ? 'fa-times' : 'fa-bars'} text-2xl`}></i>
+          </button>
         </div>
+
+        {/* Mobile Menu */}
+        {showMobileMenu && (
+          <div className="md:hidden bg-white border-t border-gray-100 px-4 py-4">
+            {!isAuthenticated ? (
+              <div className="flex flex-col space-y-3">
+                <Link to="/properties" className="text-gray-700 hover:text-blue-600 transition py-2">Properties</Link>
+                <Link to="/login" className="text-gray-700 hover:text-blue-600 transition py-2">Login</Link>
+                <Link to="/register" className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition text-center">
+                  <i className="fas fa-user-plus mr-2"></i> Register
+                </Link>
+              </div>
+            ) : isCustomer ? (
+              <div className="flex flex-col space-y-3">
+                <span className="text-sm text-gray-600">
+                  <i className="fas fa-user mr-1"></i> {user?.full_name || 'Customer'}
+                </span>
+                <Link to="/properties" className="text-gray-700 hover:text-blue-600 transition py-2">Properties</Link>
+                <Link to="/profile/inquiries" className="text-gray-700 hover:text-blue-600 transition py-2">My Inquiries</Link>
+                <Link to="/profile" className="text-gray-700 hover:text-blue-600 transition py-2">Profile</Link>
+                <button 
+                  onClick={handleLogout}
+                  className="text-red-600 hover:text-red-800 transition font-semibold py-2 text-left"
+                >
+                  <i className="fas fa-sign-out-alt mr-1"></i> Logout
+                </button>
+              </div>
+            ) : isAgent ? (
+              <div className="flex flex-col space-y-3">
+                <span className="text-sm text-gray-600">
+                  <i className="fas fa-user-tie mr-1"></i> {user?.full_name || 'Agent'}
+                </span>
+                <Link to="/dashboard" className="text-gray-700 hover:text-blue-600 transition py-2">Dashboard</Link>
+                <Link to="/properties" className="text-gray-700 hover:text-blue-600 transition py-2">Properties</Link>
+                <Link to="/dashboard/buildings" className="text-gray-700 hover:text-blue-600 transition py-2">My Buildings</Link>
+                <Link to="/dashboard/inquiries" className="text-gray-700 hover:text-blue-600 transition py-2">Inquiries</Link>
+                <button 
+                  onClick={handleLogout}
+                  className="text-red-600 hover:text-red-800 transition font-semibold py-2 text-left"
+                >
+                  <i className="fas fa-sign-out-alt mr-1"></i> Logout
+                </button>
+              </div>
+            ) : isAdmin ? (
+              <div className="flex flex-col space-y-3">
+                <span className="text-sm text-gray-600">
+                  <i className="fas fa-user-shield mr-1"></i> {user?.full_name || 'Admin'}
+                </span>
+                <Link to="/admin" className="text-gray-700 hover:text-blue-600 transition py-2">Admin Panel</Link>
+                <Link to="/admin/agents" className="text-gray-700 hover:text-blue-600 transition py-2">Agents</Link>
+                <Link to="/properties" className="text-gray-700 hover:text-blue-600 transition py-2">Properties</Link>
+                <button 
+                  onClick={handleLogout}
+                  className="text-red-600 hover:text-red-800 transition font-semibold py-2 text-left"
+                >
+                  <i className="fas fa-sign-out-alt mr-1"></i> Logout
+                </button>
+              </div>
+            ) : null}
+          </div>
+        )}
       </nav>
 
-      {/* Hero Section with Sharp Background */}
+      {/* Hero Section with Fixed Background */}
       <section className="relative pt-16 min-h-screen flex items-center">
-        {/* Fixed Background - Sharp High Quality Image */}
+        {/* Fixed Background */}
         <div 
           className="fixed inset-0 bg-cover bg-center bg-no-repeat"
           style={{
             backgroundImage: 'url("https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=1920&h=1080&fit=crop&q=80")',
           }}
         >
-          {/* Subtle gradient for text readability */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent"></div>
           <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-transparent"></div>
         </div>
 
-        {/* Content - Scrollable */}
+        {/* Content */}
         <div className="relative z-10 w-full">
           <div className="container mx-auto px-4 py-20">
             <div className="max-w-4xl mx-auto text-center text-white">
-              {/* Logo in Hero */}
               <div className="flex justify-center mb-6">
                 <img 
                   src="/logo-white.png" 
@@ -145,11 +315,15 @@ function HomePage() {
                       className="w-full pl-12 pr-4 py-3 rounded-xl bg-white/90 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 border-0 appearance-none"
                     >
                       <option value="">All Counties</option>
-                      {counties.map((county) => (
-                        <option key={county.county} value={county.county}>
-                          {county.county} ({county.property_count} properties)
-                        </option>
-                      ))}
+                      {counties.map((county) => {
+                        const countyInfo = getCountyInfo(county.county);
+                        return (
+                          <option key={county.county} value={county.county}>
+                            {county.county} ({county.property_count} properties)
+                            {countyInfo?.capital && ` - ${countyInfo.capital}`}
+                          </option>
+                        );
+                      })}
                     </select>
                   </div>
                   <div className="flex-1 relative">
@@ -176,15 +350,22 @@ function HomePage() {
                 </div>
                 
                 <div className="flex flex-wrap justify-center gap-2 mt-4">
-                  {counties.slice(0, 4).map((county) => (
-                    <button 
-                      key={county.county}
-                      onClick={() => { setSearchTerm(county.county); setPropertyType(''); }}
-                      className="px-3 py-1 bg-white/20 hover:bg-white/30 rounded-full text-sm text-white transition backdrop-blur-sm"
-                    >
-                      {county.county} ({county.vacant_units} vacant)
-                    </button>
-                  ))}
+                  {counties.slice(0, 4).map((county) => {
+                    const countyInfo = getCountyInfo(county.county);
+                    return (
+                      <button 
+                        key={county.county}
+                        onClick={() => { setSearchTerm(county.county); setPropertyType(''); }}
+                        className="px-3 py-1 bg-white/20 hover:bg-white/30 rounded-full text-sm text-white transition backdrop-blur-sm"
+                      >
+                        {county.county} 
+                        {countyInfo?.capital && ` (${countyInfo.capital})`}
+                        <span className="text-xs ml-1 text-gray-300">
+                          {county.vacant_units} vacant
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               </form>
 
@@ -230,6 +411,7 @@ function HomePage() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {counties.map((county) => {
+              const countyInfo = getCountyInfo(county.county);
               const imageUrl = countyImages[county.county] || defaultImages[county.county] || 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=600&h=400&fit=crop';
               return (
                 <div
@@ -249,7 +431,14 @@ function HomePage() {
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent flex flex-col justify-end p-6">
                     <h3 className="text-2xl font-bold text-white">{county.county}</h3>
-                    <p className="text-gray-300">{county.property_count} properties • {county.vacant_units} vacant units</p>
+                    <p className="text-gray-300">
+                      {county.property_count} properties • {county.vacant_units} vacant units
+                    </p>
+                    {countyInfo?.capital && (
+                      <p className="text-xs text-gray-400 mt-1">
+                        Capital: {countyInfo.capital}
+                      </p>
+                    )}
                   </div>
                 </div>
               );
@@ -298,6 +487,7 @@ function HomePage() {
                 const units = building.units || [];
                 const vacantUnits = units.filter(u => u.status === 'vacant');
                 const minRent = vacantUnits.length > 0 ? Math.min(...vacantUnits.map(u => u.rent_amount)) : 0;
+                const countyInfo = getCountyInfo(building.county);
                 
                 return (
                   <div key={building.id} className="group bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2">
@@ -314,7 +504,9 @@ function HomePage() {
                     <div className="p-6">
                       <h3 className="text-xl font-bold text-gray-800 mb-1">{building.name}</h3>
                       <p className="text-gray-600 text-sm">
-                        <i className="fas fa-map-marker-alt text-blue-500 mr-1"></i> {building.town}, {building.county}
+                        <i className="fas fa-map-marker-alt text-blue-500 mr-1"></i> 
+                        {building.town}, {building.county}
+                        {countyInfo?.capital && ` (${countyInfo.capital})`}
                       </p>
                       <p className="text-gray-500 text-sm mt-2 line-clamp-2">{building.description?.substring(0, 100)}...</p>
                       
@@ -386,21 +578,23 @@ function HomePage() {
         </div>
       </section>
 
-      {/* Call to Action */}
-      <section className="relative z-10 py-20 gradient-bg text-white">
-        <div className="container mx-auto px-4 text-center">
-          <h2 className="text-4xl font-bold mb-4">Ready to Find Your Dream Home?</h2>
-          <p className="text-xl mb-8 text-gray-200 max-w-2xl mx-auto">Join thousands of happy tenants who found their perfect home through Mynyumba</p>
-          <div className="flex flex-col sm:flex-row justify-center gap-4">
-            <Link to="/register" className="bg-white text-blue-600 px-8 py-3 rounded-xl font-semibold hover:shadow-xl transition transform hover:scale-105">
-              <i className="fas fa-user-plus mr-2"></i> Get Started
-            </Link>
-            <Link to="/properties" className="bg-blue-600/30 text-white px-8 py-3 rounded-xl font-semibold hover:bg-white/20 transition border border-white/30">
-              <i className="fas fa-search mr-2"></i> Browse Properties
-            </Link>
+      {/* Call to Action - Only show if not logged in */}
+      {!isAuthenticated && (
+        <section className="relative z-10 py-20 gradient-bg text-white">
+          <div className="container mx-auto px-4 text-center">
+            <h2 className="text-4xl font-bold mb-4">Ready to Find Your Dream Home?</h2>
+            <p className="text-xl mb-8 text-gray-200 max-w-2xl mx-auto">Join thousands of happy tenants who found their perfect home through Mynyumba</p>
+            <div className="flex flex-col sm:flex-row justify-center gap-4">
+              <Link to="/register" className="bg-white text-blue-600 px-8 py-3 rounded-xl font-semibold hover:shadow-xl transition transform hover:scale-105">
+                <i className="fas fa-user-plus mr-2"></i> Get Started
+              </Link>
+              <Link to="/properties" className="bg-blue-600/30 text-white px-8 py-3 rounded-xl font-semibold hover:bg-white/20 transition border border-white/30">
+                <i className="fas fa-search mr-2"></i> Browse Properties
+              </Link>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* Footer */}
       <footer className="relative z-10 bg-gray-900 text-white py-12">
@@ -432,9 +626,15 @@ function HomePage() {
             <div>
               <h4 className="font-bold mb-4">Popular Counties</h4>
               <ul className="space-y-2 text-gray-400">
-                {counties.slice(0, 4).map((county) => (
-                  <li key={county.county}>{county.county}</li>
-                ))}
+                {counties.slice(0, 4).map((county) => {
+                  const countyInfo = getCountyInfo(county.county);
+                  return (
+                    <li key={county.county}>
+                      {county.county}
+                      {countyInfo?.capital && ` (${countyInfo.capital})`}
+                    </li>
+                  );
+                })}
               </ul>
             </div>
             <div>

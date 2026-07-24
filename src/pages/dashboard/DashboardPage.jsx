@@ -5,6 +5,8 @@ import { Button } from '../../components/ui/Button';
 import { Card, CardBody } from '../../components/ui/Card';
 import { Modal } from '../../components/ui/Modal';
 import { Input } from '../../components/ui/Input';
+import LocationSelect from '../../components/LocationSelect';
+import LocationSearch from '../../components/LocationSearch';
 
 function DashboardPage() {
   const { user, logout } = useAuth();
@@ -13,7 +15,10 @@ function DashboardPage() {
   const [inquiries, setInquiries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('properties');
+  const [statusFilter, setStatusFilter] = useState('all'); // all, pending, approved, rejected
   const [showAddBuilding, setShowAddBuilding] = useState(false);
+  const [showEditBuilding, setShowEditBuilding] = useState(null);
+  const [useLocationSearch, setUseLocationSearch] = useState(false);
   const [newBuilding, setNewBuilding] = useState({
     name: '',
     county: '',
@@ -21,14 +26,21 @@ function DashboardPage() {
     location: '',
     description: '',
     building_photo: '',
+    building_photo_file: null,
   });
   const [showAddUnit, setShowAddUnit] = useState(null);
+  const [showEditUnit, setShowEditUnit] = useState(null);
+  const [editingUnit, setEditingUnit] = useState(null);
   const [newUnit, setNewUnit] = useState({
     unit_label: '',
     unit_type: 'bedsitter',
     rent_amount: '',
     deposit: '',
-    status: 'vacant'
+    status: 'vacant',
+    unit_photo_1: null,
+    unit_photo_2: null,
+    unit_photo_3: null,
+    unit_photo_4: null,
   });
 
   useEffect(() => {
@@ -67,19 +79,38 @@ function DashboardPage() {
     e.preventDefault();
     try {
       const token = localStorage.getItem('token');
+      
+      const formData = new FormData();
+      formData.append('name', newBuilding.name);
+      formData.append('county', newBuilding.county);
+      formData.append('town', newBuilding.town);
+      formData.append('location', newBuilding.location);
+      formData.append('description', newBuilding.description);
+      
+      if (newBuilding.building_photo_file) {
+        formData.append('building_photo', newBuilding.building_photo_file);
+      }
+
       const response = await fetch('https://raffcodes.tech/api/buildings', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(newBuilding)
+        body: formData
       });
 
       if (response.ok) {
-        alert('✅ Building added successfully!');
+        alert('✅ Building added successfully! Awaiting admin approval.');
         setShowAddBuilding(false);
-        setNewBuilding({ name: '', county: '', town: '', location: '', description: '', building_photo: '' });
+        setNewBuilding({ 
+          name: '', 
+          county: '', 
+          town: '', 
+          location: '', 
+          description: '', 
+          building_photo: '',
+          building_photo_file: null 
+        });
         loadData();
       } else {
         const error = await response.json();
@@ -90,27 +121,115 @@ function DashboardPage() {
     }
   };
 
+  const handleEditBuilding = async (e) => {
+    e.preventDefault();
+    try {
+      const token = localStorage.getItem('token');
+      
+      const formData = new FormData();
+      formData.append('name', newBuilding.name);
+      formData.append('county', newBuilding.county);
+      formData.append('town', newBuilding.town);
+      formData.append('location', newBuilding.location);
+      formData.append('description', newBuilding.description);
+      
+      if (newBuilding.building_photo_file) {
+        formData.append('building_photo', newBuilding.building_photo_file);
+      }
+
+      const response = await fetch(`https://raffcodes.tech/api/buildings/${showEditBuilding}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
+
+      if (response.ok) {
+        alert('✅ Building updated successfully!');
+        setShowEditBuilding(null);
+        setNewBuilding({ 
+          name: '', 
+          county: '', 
+          town: '', 
+          location: '', 
+          description: '', 
+          building_photo: '',
+          building_photo_file: null 
+        });
+        loadData();
+      } else {
+        const error = await response.json();
+        alert('❌ ' + (error.error || 'Failed to update building'));
+      }
+    } catch (error) {
+      alert('❌ Network error. Please try again.');
+    }
+  };
+
+  const handleDeleteBuilding = async (buildingId) => {
+    if (!confirm('Are you sure you want to delete this property? This action cannot be undone.')) return;
+    
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`https://raffcodes.tech/api/buildings/${buildingId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        alert('✅ Building deleted successfully!');
+        loadData();
+      } else {
+        const error = await response.json();
+        alert('❌ ' + (error.error || 'Failed to delete building'));
+      }
+    } catch (error) {
+      alert('❌ Network error. Please try again.');
+    }
+  };
+
   const handleAddUnit = async (buildingId) => {
     try {
       const token = localStorage.getItem('token');
+      
+      const formData = new FormData();
+      formData.append('building_id', buildingId);
+      formData.append('unit_label', newUnit.unit_label);
+      formData.append('unit_type', newUnit.unit_type);
+      formData.append('rent_amount', newUnit.rent_amount);
+      formData.append('deposit', newUnit.deposit || 0);
+      formData.append('status', newUnit.status);
+      
+      if (newUnit.unit_photo_1) formData.append('unit_photo_1', newUnit.unit_photo_1);
+      if (newUnit.unit_photo_2) formData.append('unit_photo_2', newUnit.unit_photo_2);
+      if (newUnit.unit_photo_3) formData.append('unit_photo_3', newUnit.unit_photo_3);
+      if (newUnit.unit_photo_4) formData.append('unit_photo_4', newUnit.unit_photo_4);
+
       const response = await fetch('https://raffcodes.tech/api/units', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({
-          ...newUnit,
-          building_id: buildingId,
-          rent_amount: parseFloat(newUnit.rent_amount),
-          deposit: parseFloat(newUnit.deposit) || 0
-        })
+        body: formData
       });
 
       if (response.ok) {
         alert('✅ Unit added successfully!');
         setShowAddUnit(null);
-        setNewUnit({ unit_label: '', unit_type: 'bedsitter', rent_amount: '', deposit: '', status: 'vacant' });
+        setNewUnit({ 
+          unit_label: '', 
+          unit_type: 'bedsitter', 
+          rent_amount: '', 
+          deposit: '', 
+          status: 'vacant',
+          unit_photo_1: null,
+          unit_photo_2: null,
+          unit_photo_3: null,
+          unit_photo_4: null,
+        });
         loadData();
       } else {
         const error = await response.json();
@@ -118,6 +237,99 @@ function DashboardPage() {
       }
     } catch (error) {
       alert('❌ Network error. Please try again.');
+    }
+  };
+
+  const handleEditUnit = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      
+      const formData = new FormData();
+      formData.append('unit_label', newUnit.unit_label);
+      formData.append('unit_type', newUnit.unit_type);
+      formData.append('rent_amount', newUnit.rent_amount);
+      formData.append('deposit', newUnit.deposit || 0);
+      formData.append('status', newUnit.status);
+      
+      if (newUnit.unit_photo_1) formData.append('unit_photo_1', newUnit.unit_photo_1);
+      if (newUnit.unit_photo_2) formData.append('unit_photo_2', newUnit.unit_photo_2);
+      if (newUnit.unit_photo_3) formData.append('unit_photo_3', newUnit.unit_photo_3);
+      if (newUnit.unit_photo_4) formData.append('unit_photo_4', newUnit.unit_photo_4);
+
+      const response = await fetch(`https://raffcodes.tech/api/units/${showEditUnit}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
+
+      if (response.ok) {
+        alert('✅ Unit updated successfully!');
+        setShowEditUnit(null);
+        setEditingUnit(null);
+        setNewUnit({ 
+          unit_label: '', 
+          unit_type: 'bedsitter', 
+          rent_amount: '', 
+          deposit: '', 
+          status: 'vacant',
+          unit_photo_1: null,
+          unit_photo_2: null,
+          unit_photo_3: null,
+          unit_photo_4: null,
+        });
+        loadData();
+      } else {
+        const error = await response.json();
+        alert('❌ ' + (error.error || 'Failed to update unit'));
+      }
+    } catch (error) {
+      alert('❌ Network error. Please try again.');
+    }
+  };
+
+  const handleDeleteUnit = async (unitId) => {
+    if (!confirm('Are you sure you want to delete this unit?')) return;
+    
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`https://raffcodes.tech/api/units/${unitId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        alert('✅ Unit deleted successfully!');
+        loadData();
+      } else {
+        const error = await response.json();
+        alert('❌ ' + (error.error || 'Failed to delete unit'));
+      }
+    } catch (error) {
+      alert('❌ Network error. Please try again.');
+    }
+  };
+
+  const updateUnitStatus = async (unitId, status) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`https://raffcodes.tech/api/units/${unitId}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ status })
+      });
+
+      if (response.ok) {
+        loadData();
+      }
+    } catch (error) {
+      console.error('Error updating unit status:', error);
     }
   };
 
@@ -141,6 +353,65 @@ function DashboardPage() {
     }
   };
 
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setNewBuilding({ 
+        ...newBuilding, 
+        building_photo_file: file,
+        building_photo_preview: URL.createObjectURL(file)
+      });
+    }
+  };
+
+  const handleUnitFileChange = (e, field) => {
+    const file = e.target.files[0];
+    if (file) {
+      setNewUnit({ 
+        ...newUnit, 
+        [field]: file,
+        [`${field}_preview`]: URL.createObjectURL(file)
+      });
+    }
+  };
+
+  const handleLocationChange = (locationData) => {
+    setNewBuilding({
+      ...newBuilding,
+      county: locationData.county || locationData.name,
+      town: locationData.town || '',
+      location: locationData.street || locationData.name
+    });
+  };
+
+  const getStatusBadge = (status) => {
+    const colors = {
+      pending: 'bg-yellow-100 text-yellow-700',
+      approved: 'bg-green-100 text-green-700',
+      rejected: 'bg-red-100 text-red-700'
+    };
+    return (
+      <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${colors[status] || 'bg-gray-100 text-gray-700'}`}>
+        {status || 'pending'}
+      </span>
+    );
+  };
+
+  const getFilteredBuildings = () => {
+    if (statusFilter === 'all') return buildings;
+    return buildings.filter(b => b.approval_status === statusFilter);
+  };
+
+  const getStatusCounts = () => {
+    const counts = {
+      all: buildings.length,
+      pending: buildings.filter(b => b.approval_status === 'pending').length,
+      approved: buildings.filter(b => b.approval_status === 'approved').length,
+      rejected: buildings.filter(b => b.approval_status === 'rejected').length
+    };
+    return counts;
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -151,6 +422,9 @@ function DashboardPage() {
       </div>
     );
   }
+
+  const statusCounts = getStatusCounts();
+  const filteredBuildings = getFilteredBuildings();
 
   return (
     <div>
@@ -220,15 +494,59 @@ function DashboardPage() {
             </Button>
           </div>
 
-          {buildings.length === 0 ? (
+          {/* Status Filter */}
+          <div className="flex flex-wrap gap-2 mb-6">
+            <button
+              onClick={() => setStatusFilter('all')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+                statusFilter === 'all' 
+                  ? 'bg-blue-600 text-white' 
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              All ({statusCounts.all})
+            </button>
+            <button
+              onClick={() => setStatusFilter('pending')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+                statusFilter === 'pending' 
+                  ? 'bg-yellow-600 text-white' 
+                  : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
+              }`}
+            >
+              Pending ({statusCounts.pending})
+            </button>
+            <button
+              onClick={() => setStatusFilter('approved')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+                statusFilter === 'approved' 
+                  ? 'bg-green-600 text-white' 
+                  : 'bg-green-100 text-green-700 hover:bg-green-200'
+              }`}
+            >
+              Approved ({statusCounts.approved})
+            </button>
+            <button
+              onClick={() => setStatusFilter('rejected')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+                statusFilter === 'rejected' 
+                  ? 'bg-red-600 text-white' 
+                  : 'bg-red-100 text-red-700 hover:bg-red-200'
+              }`}
+            >
+              Rejected ({statusCounts.rejected})
+            </button>
+          </div>
+
+          {filteredBuildings.length === 0 ? (
             <div className="text-center py-12 bg-white rounded-xl shadow">
               <i className="fas fa-building text-6xl text-gray-300 mb-4"></i>
-              <p className="text-gray-500 text-lg">No properties yet</p>
+              <p className="text-gray-500 text-lg">No {statusFilter !== 'all' ? statusFilter : ''} properties</p>
               <p className="text-gray-400">Click "Add Property" to get started</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6">
-              {buildings.map((building) => {
+              {filteredBuildings.map((building) => {
                 const units = building.units || [];
                 const vacantUnits = units.filter(u => u.status === 'vacant');
                 
@@ -244,19 +562,47 @@ function DashboardPage() {
                           e.target.src = 'https://via.placeholder.com/400x300?text=No+Image';
                         }}
                       />
-                      {building.approval_status === 'pending' && (
-                        <div className="absolute top-2 right-2 bg-yellow-500 text-white text-xs px-2 py-1 rounded-full">
-                          Pending Approval
-                        </div>
-                      )}
-                      {building.approval_status === 'approved' && (
-                        <div className="absolute top-2 right-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full">
-                          Approved
+                      <div className="absolute top-2 right-2">
+                        {getStatusBadge(building.approval_status)}
+                      </div>
+                      {building.approval_status === 'rejected' && building.rejection_reason && (
+                        <div className="absolute bottom-2 left-2 right-2 bg-red-900/80 text-white text-xs p-2 rounded">
+                          <i className="fas fa-info-circle mr-1"></i>
+                          {building.rejection_reason}
                         </div>
                       )}
                     </div>
                     <div className="p-4">
-                      <h3 className="text-lg font-bold text-gray-800 truncate">{building.name}</h3>
+                      <div className="flex justify-between items-start">
+                        <h3 className="text-lg font-bold text-gray-800 truncate">{building.name}</h3>
+                        <div className="flex gap-1">
+                          {building.approval_status !== 'rejected' && (
+                            <button
+                              onClick={() => {
+                                setShowEditBuilding(building.id);
+                                setNewBuilding({
+                                  name: building.name,
+                                  county: building.county || '',
+                                  town: building.town || '',
+                                  location: building.location || '',
+                                  description: building.description || '',
+                                  building_photo: building.building_photo || '',
+                                  building_photo_file: null,
+                                });
+                              }}
+                              className="text-blue-600 hover:text-blue-800 text-sm"
+                            >
+                              <i className="fas fa-edit"></i>
+                            </button>
+                          )}
+                          <button
+                            onClick={() => handleDeleteBuilding(building.id)}
+                            className="text-red-600 hover:text-red-800 text-sm"
+                          >
+                            <i className="fas fa-trash"></i>
+                          </button>
+                        </div>
+                      </div>
                       <p className="text-gray-600 text-sm truncate">
                         <i className="fas fa-map-marker-alt text-blue-500 mr-1"></i> 
                         {building.town}, {building.county}
@@ -266,23 +612,45 @@ function DashboardPage() {
                         <span className="text-green-600">Vacant: <span className="font-bold">{vacantUnits.length}</span></span>
                         <span className="text-blue-600">Occupied: <span className="font-bold">{units.length - vacantUnits.length}</span></span>
                       </div>
-                      <div className="mt-4 flex gap-2">
-                        <Link
-                          to={`/properties/${building.id}`}
-                          className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-center transition text-sm"
-                        >
-                          <i className="fas fa-eye mr-1"></i> View
-                        </Link>
-                        <button
-                          onClick={() => {
-                            setShowAddUnit(building.id);
-                            setNewUnit({ unit_label: '', unit_type: 'bedsitter', rent_amount: '', deposit: '', status: 'vacant' });
-                          }}
-                          className="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition text-sm"
-                        >
-                          <i className="fas fa-plus mr-1"></i> Add Unit
-                        </button>
-                      </div>
+                      {building.approval_status !== 'rejected' && (
+                        <div className="mt-4 flex gap-2">
+                          <Link
+                            to={`/properties/${building.id}`}
+                            className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-center transition text-sm"
+                          >
+                            <i className="fas fa-eye mr-1"></i> View
+                          </Link>
+                          <button
+                            onClick={() => {
+                              setShowAddUnit(building.id);
+                              setNewUnit({ 
+                                unit_label: '', 
+                                unit_type: 'bedsitter', 
+                                rent_amount: '', 
+                                deposit: '', 
+                                status: 'vacant',
+                                unit_photo_1: null,
+                                unit_photo_2: null,
+                                unit_photo_3: null,
+                                unit_photo_4: null,
+                              });
+                            }}
+                            className="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition text-sm"
+                          >
+                            <i className="fas fa-plus mr-1"></i> Add Unit
+                          </button>
+                        </div>
+                      )}
+                      {building.approval_status === 'rejected' && (
+                        <div className="mt-4">
+                          <button
+                            onClick={() => handleDeleteBuilding(building.id)}
+                            className="w-full bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition text-sm"
+                          >
+                            <i className="fas fa-trash mr-1"></i> Remove Rejected Property
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
@@ -378,38 +746,49 @@ function DashboardPage() {
                   className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">County *</label>
-                  <input
-                    type="text"
-                    required
-                    value={newBuilding.county}
-                    onChange={(e) => setNewBuilding({...newBuilding, county: e.target.value})}
-                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Town *</label>
-                  <input
-                    type="text"
-                    required
-                    value={newBuilding.town}
-                    onChange={(e) => setNewBuilding({...newBuilding, town: e.target.value})}
-                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
+              
+              {/* Location Selection */}
+              <div className="mb-2">
+                <div className="flex items-center gap-4 mb-2">
+                  <label className="text-sm font-medium text-gray-700">Location Input:</label>
+                  <button
+                    type="button"
+                    onClick={() => setUseLocationSearch(false)}
+                    className={`text-sm px-3 py-1 rounded ${!useLocationSearch ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'}`}
+                  >
+                    Dropdown
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setUseLocationSearch(true)}
+                    className={`text-sm px-3 py-1 rounded ${useLocationSearch ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'}`}
+                  >
+                    Search
+                  </button>
                 </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Location/Street *</label>
-                <input
-                  type="text"
-                  required
-                  value={newBuilding.location}
-                  onChange={(e) => setNewBuilding({...newBuilding, location: e.target.value})}
-                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+
+              {useLocationSearch ? (
+                <LocationSearch
+                  onSelect={handleLocationChange}
+                  placeholder="Search for a location in Kenya..."
                 />
-              </div>
+              ) : (
+                <LocationSelect
+                  onLocationChange={({ county, town, street }) => {
+                    setNewBuilding({
+                      ...newBuilding,
+                      county: county,
+                      town: town,
+                      location: street || newBuilding.location
+                    });
+                  }}
+                  initialCounty={newBuilding.county}
+                  initialTown={newBuilding.town}
+                  initialStreet={newBuilding.location}
+                />
+              )}
+              
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
                 <textarea
@@ -420,14 +799,20 @@ function DashboardPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Property Photo URL</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Property Photo</label>
                 <input
-                  type="text"
-                  value={newBuilding.building_photo}
-                  onChange={(e) => setNewBuilding({...newBuilding, building_photo: e.target.value})}
-                  placeholder="https://example.com/photo.jpg"
-                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileChange}
+                  className="w-full"
                 />
+                {newBuilding.building_photo_preview && (
+                  <img 
+                    src={newBuilding.building_photo_preview} 
+                    alt="Preview" 
+                    className="mt-2 h-32 object-cover rounded-lg" 
+                  />
+                )}
               </div>
               <div className="flex gap-3">
                 <button type="submit" className="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition">
@@ -436,6 +821,89 @@ function DashboardPage() {
                 <button
                   type="button"
                   onClick={() => setShowAddBuilding(false)}
+                  className="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400 transition"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Building Modal */}
+      {showEditBuilding && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <h2 className="text-2xl font-bold text-gray-800 mb-4">Edit Property</h2>
+            <form onSubmit={handleEditBuilding} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Property Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={newBuilding.name}
+                  onChange={(e) => setNewBuilding({...newBuilding, name: e.target.value})}
+                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              
+              <LocationSelect
+                onLocationChange={({ county, town, street }) => {
+                  setNewBuilding({
+                    ...newBuilding,
+                    county: county,
+                    town: town,
+                    location: street || newBuilding.location
+                  });
+                }}
+                initialCounty={newBuilding.county}
+                initialTown={newBuilding.town}
+                initialStreet={newBuilding.location}
+              />
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <textarea
+                  rows="3"
+                  value={newBuilding.description}
+                  onChange={(e) => setNewBuilding({...newBuilding, description: e.target.value})}
+                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Property Photo</label>
+                {newBuilding.building_photo && (
+                  <div className="mb-2">
+                    <img 
+                      src={newBuilding.building_photo} 
+                      alt="Current" 
+                      className="h-32 object-cover rounded-lg" 
+                    />
+                    <p className="text-xs text-gray-400 mt-1">Current photo</p>
+                  </div>
+                )}
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileChange}
+                  className="w-full"
+                />
+                {newBuilding.building_photo_preview && (
+                  <img 
+                    src={newBuilding.building_photo_preview} 
+                    alt="Preview" 
+                    className="mt-2 h-32 object-cover rounded-lg" 
+                  />
+                )}
+              </div>
+              <div className="flex gap-3">
+                <button type="submit" className="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition">
+                  Update Property
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowEditBuilding(null)}
                   className="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400 transition"
                 >
                   Cancel
@@ -512,6 +980,71 @@ function DashboardPage() {
                   <option value="occupied">Occupied</option>
                   <option value="maintenance">Maintenance</option>
                 </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Unit Photos (up to 4)</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      onChange={(e) => handleUnitFileChange(e, 'unit_photo_1')} 
+                      className="w-full text-sm" 
+                    />
+                    {newUnit.unit_photo_1_preview && (
+                      <img 
+                        src={newUnit.unit_photo_1_preview} 
+                        alt="Unit 1" 
+                        className="mt-1 h-16 object-cover rounded" 
+                      />
+                    )}
+                  </div>
+                  <div>
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      onChange={(e) => handleUnitFileChange(e, 'unit_photo_2')} 
+                      className="w-full text-sm" 
+                    />
+                    {newUnit.unit_photo_2_preview && (
+                      <img 
+                        src={newUnit.unit_photo_2_preview} 
+                        alt="Unit 2" 
+                        className="mt-1 h-16 object-cover rounded" 
+                      />
+                    )}
+                  </div>
+                  <div>
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      onChange={(e) => handleUnitFileChange(e, 'unit_photo_3')} 
+                      className="w-full text-sm" 
+                    />
+                    {newUnit.unit_photo_3_preview && (
+                      <img 
+                        src={newUnit.unit_photo_3_preview} 
+                        alt="Unit 3" 
+                        className="mt-1 h-16 object-cover rounded" 
+                      />
+                    )}
+                  </div>
+                  <div>
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      onChange={(e) => handleUnitFileChange(e, 'unit_photo_4')} 
+                      className="w-full text-sm" 
+                    />
+                    {newUnit.unit_photo_4_preview && (
+                      <img 
+                        src={newUnit.unit_photo_4_preview} 
+                        alt="Unit 4" 
+                        className="mt-1 h-16 object-cover rounded" 
+                      />
+                    )}
+                  </div>
+                </div>
               </div>
               <div className="flex gap-3">
                 <button type="submit" className="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition">

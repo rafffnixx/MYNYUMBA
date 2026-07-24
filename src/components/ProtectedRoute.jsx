@@ -20,14 +20,25 @@ function ProtectedRoute({ adminOnly = false, agentOnly = false }) {
     return <Navigate to="/login" replace />;
   }
 
-  if (adminOnly && !isAdmin) {
-    return <Navigate to="/dashboard" replace />;
+  // Admin routes - only admins can access
+  if (adminOnly) {
+    if (!isAdmin) {
+      // If user is agent, send to dashboard, otherwise send home
+      return <Navigate to={isAgent ? "/dashboard" : "/"} replace />;
+    }
+    return <Outlet />;
   }
 
-  if (agentOnly && !isAgent) {
-    return <Navigate to="/" replace />;
+  // Agent routes - only agents can access
+  if (agentOnly) {
+    if (!isAgent) {
+      // If user is admin, send to admin, otherwise send home
+      return <Navigate to={isAdmin ? "/admin" : "/"} replace />;
+    }
+    return <Outlet />;
   }
 
+  // Protected route for any authenticated user (customers)
   return <Outlet />;
 }
 

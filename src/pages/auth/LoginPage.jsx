@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -7,8 +7,36 @@ function LoginPage() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const { login } = useAuth();
+  const { login, user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+
+  // Handle redirect when user becomes authenticated
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      console.log('User authenticated with role:', user.role);
+      console.log('Full user object:', user);
+      
+      // Check if user is actually a customer
+      const userRole = user.role?.toLowerCase();
+      
+      // Small delay to ensure everything is settled
+      const timer = setTimeout(() => {
+        if (userRole === 'admin') {
+          console.log('Redirecting to admin dashboard');
+          navigate('/admin', { replace: true });
+        } else if (userRole === 'agent') {
+          console.log('Redirecting to agent dashboard');
+          navigate('/dashboard', { replace: true });
+        } else {
+          // Customer or any other role goes to home
+          console.log('Redirecting to home page (customer)');
+          navigate('/', { replace: true });
+        }
+      }, 100);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [isAuthenticated, user, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -18,18 +46,12 @@ function LoginPage() {
     const result = await login(email, password);
     
     if (result.success) {
-      const user = JSON.parse(localStorage.getItem('user'));
-      if (user?.role === 'admin') {
-        navigate('/admin');
-      } else if (user?.role === 'agent') {
-        navigate('/dashboard');
-      } else {
-        navigate('/profile');
-      }
+      console.log('Login successful, waiting for redirect...');
+      // The useEffect will handle the redirect
     } else {
       setError(result.error);
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
@@ -49,7 +71,6 @@ function LoginPage() {
       <div className="relative z-10 w-1/2 pl-12 md:pl-16 lg:pl-24 text-white hidden lg:block">
         <div className="max-w-lg">
           <div className="mb-8">
-            {/* Logo on Left Side */}
             <div className="mb-4">
               <img 
                 src="/logo-white.png" 
@@ -97,7 +118,6 @@ function LoginPage() {
           </Link>
 
           <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl p-6 md:p-8 border border-white/20 transform transition-all hover:shadow-3xl">
-            {/* Logo in Form */}
             <div className="text-center mb-5">
               <div className="flex justify-center mb-3">
                 <img 

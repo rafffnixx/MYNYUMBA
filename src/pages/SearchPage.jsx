@@ -1,13 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 
 function SearchPage() {
+  const { user, isAuthenticated, isAdmin, isAgent, isCustomer, logout } = useAuth();
   const [searchParams] = useSearchParams();
   const [properties, setProperties] = useState([]);
   const [counties, setCounties] = useState([]);
   const [towns, setTowns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [filters, setFilters] = useState({
     county: searchParams.get('county') || '',
     town: searchParams.get('town') || '',
@@ -90,31 +93,205 @@ function SearchPage() {
     loadProperties();
   };
 
+  const handleLogout = () => {
+    logout();
+    // Navigate to home or login page
+    window.location.href = '/';
+  };
+
+  // Render navbar based on authentication and role
+  const renderNavbar = () => {
+    // Public/Not logged in
+    if (!isAuthenticated) {
+      return (
+        <div className="flex items-center space-x-4">
+          <Link to="/properties" className="text-blue-600 font-semibold">Properties</Link>
+          <Link to="/login" className="text-gray-700 hover:text-blue-600 transition">Login</Link>
+          <Link to="/register" className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition shadow-md">
+            <i className="fas fa-user-plus mr-2"></i> Register
+          </Link>
+        </div>
+      );
+    }
+
+    // Customer logged in
+    if (isCustomer) {
+      return (
+        <div className="flex items-center space-x-4">
+          <span className="text-sm text-gray-600">
+            <i className="fas fa-user mr-1"></i> {user?.full_name || 'Customer'}
+          </span>
+          <Link to="/properties" className="text-blue-600 font-semibold">Properties</Link>
+          <Link to="/profile/inquiries" className="text-gray-700 hover:text-blue-600 transition">My Inquiries</Link>
+          <Link to="/profile" className="text-gray-700 hover:text-blue-600 transition">Profile</Link>
+          <button 
+            onClick={handleLogout}
+            className="text-red-600 hover:text-red-800 transition font-semibold"
+          >
+            <i className="fas fa-sign-out-alt mr-1"></i> Logout
+          </button>
+        </div>
+      );
+    }
+
+    // Agent logged in
+    if (isAgent) {
+      return (
+        <div className="flex items-center space-x-4">
+          <span className="text-sm text-gray-600">
+            <i className="fas fa-user-tie mr-1"></i> {user?.full_name || 'Agent'}
+          </span>
+          <Link to="/dashboard" className="text-gray-700 hover:text-blue-600 transition">Dashboard</Link>
+          <Link to="/properties" className="text-blue-600 font-semibold">Properties</Link>
+          <Link to="/dashboard/buildings" className="text-gray-700 hover:text-blue-600 transition">My Buildings</Link>
+          <Link to="/dashboard/inquiries" className="text-gray-700 hover:text-blue-600 transition">Inquiries</Link>
+          <button 
+            onClick={handleLogout}
+            className="text-red-600 hover:text-red-800 transition font-semibold"
+          >
+            <i className="fas fa-sign-out-alt mr-1"></i> Logout
+          </button>
+        </div>
+      );
+    }
+
+    // Admin logged in
+    if (isAdmin) {
+      return (
+        <div className="flex items-center space-x-4">
+          <span className="text-sm text-gray-600">
+            <i className="fas fa-user-shield mr-1"></i> {user?.full_name || 'Admin'}
+          </span>
+          <Link to="/admin" className="text-gray-700 hover:text-blue-600 transition">Admin Panel</Link>
+          <Link to="/admin/agents" className="text-gray-700 hover:text-blue-600 transition">Agents</Link>
+          <Link to="/properties" className="text-blue-600 font-semibold">Properties</Link>
+          <button 
+            onClick={handleLogout}
+            className="text-red-600 hover:text-red-800 transition font-semibold"
+          >
+            <i className="fas fa-sign-out-alt mr-1"></i> Logout
+          </button>
+        </div>
+      );
+    }
+
+    // Fallback
+    return (
+      <div className="flex items-center space-x-4">
+        <Link to="/properties" className="text-blue-600 font-semibold">Properties</Link>
+        <Link to="/login" className="text-gray-700 hover:text-blue-600 transition">Login</Link>
+        <Link to="/register" className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition shadow-md">
+          <i className="fas fa-user-plus mr-2"></i> Register
+        </Link>
+      </div>
+    );
+  };
+
+  // Render mobile menu
+  const renderMobileMenu = () => {
+    if (!isAuthenticated) {
+      return (
+        <div className="flex flex-col space-y-3">
+          <Link to="/properties" className="text-blue-600 font-semibold py-2">Properties</Link>
+          <Link to="/login" className="text-gray-700 hover:text-blue-600 transition py-2">Login</Link>
+          <Link to="/register" className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition text-center">
+            <i className="fas fa-user-plus mr-2"></i> Register
+          </Link>
+        </div>
+      );
+    }
+
+    if (isCustomer) {
+      return (
+        <div className="flex flex-col space-y-3">
+          <span className="text-sm text-gray-600">
+            <i className="fas fa-user mr-1"></i> {user?.full_name || 'Customer'}
+          </span>
+          <Link to="/properties" className="text-blue-600 font-semibold py-2">Properties</Link>
+          <Link to="/profile/inquiries" className="text-gray-700 hover:text-blue-600 transition py-2">My Inquiries</Link>
+          <Link to="/profile" className="text-gray-700 hover:text-blue-600 transition py-2">Profile</Link>
+          <button 
+            onClick={handleLogout}
+            className="text-red-600 hover:text-red-800 transition font-semibold py-2 text-left"
+          >
+            <i className="fas fa-sign-out-alt mr-1"></i> Logout
+          </button>
+        </div>
+      );
+    }
+
+    if (isAgent) {
+      return (
+        <div className="flex flex-col space-y-3">
+          <span className="text-sm text-gray-600">
+            <i className="fas fa-user-tie mr-1"></i> {user?.full_name || 'Agent'}
+          </span>
+          <Link to="/dashboard" className="text-gray-700 hover:text-blue-600 transition py-2">Dashboard</Link>
+          <Link to="/properties" className="text-blue-600 font-semibold py-2">Properties</Link>
+          <Link to="/dashboard/buildings" className="text-gray-700 hover:text-blue-600 transition py-2">My Buildings</Link>
+          <Link to="/dashboard/inquiries" className="text-gray-700 hover:text-blue-600 transition py-2">Inquiries</Link>
+          <button 
+            onClick={handleLogout}
+            className="text-red-600 hover:text-red-800 transition font-semibold py-2 text-left"
+          >
+            <i className="fas fa-sign-out-alt mr-1"></i> Logout
+          </button>
+        </div>
+      );
+    }
+
+    if (isAdmin) {
+      return (
+        <div className="flex flex-col space-y-3">
+          <span className="text-sm text-gray-600">
+            <i className="fas fa-user-shield mr-1"></i> {user?.full_name || 'Admin'}
+          </span>
+          <Link to="/admin" className="text-gray-700 hover:text-blue-600 transition py-2">Admin Panel</Link>
+          <Link to="/admin/agents" className="text-gray-700 hover:text-blue-600 transition py-2">Agents</Link>
+          <Link to="/properties" className="text-blue-600 font-semibold py-2">Properties</Link>
+          <button 
+            onClick={handleLogout}
+            className="text-red-600 hover:text-red-800 transition font-semibold py-2 text-left"
+          >
+            <i className="fas fa-sign-out-alt mr-1"></i> Logout
+          </button>
+        </div>
+      );
+    }
+
+    return null;
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Navigation */}
-      <nav className="bg-white/95 backdrop-blur-sm shadow-lg fixed w-full z-50 top-0">
+      <nav className="bg-white shadow-lg fixed w-full z-50 top-0">
         <div className="container mx-auto px-4 py-3 flex justify-between items-center">
           <Link to="/" className="flex items-center space-x-2">
-            <img 
-              src="/logo.png" 
-              alt="Mynyumba Logo" 
-              className="h-10 w-auto"
-              onError={(e) => {
-                e.target.onerror = null;
-                e.target.style.display = 'none';
-              }}
-            />
+            <img src="/logo.png" alt="Mynyumba Logo" className="h-10 w-auto" />
             <span className="text-2xl font-bold text-blue-600">Mynyumba</span>
           </Link>
-          <div className="flex items-center space-x-4">
-            <Link to="/properties" className="text-blue-600 font-semibold">Properties</Link>
-            <Link to="/login" className="text-gray-700 hover:text-blue-600 transition">Login</Link>
-            <Link to="/register" className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition shadow-md">
-              <i className="fas fa-user-plus mr-2"></i> Register
-            </Link>
+          
+          {/* Desktop Navigation */}
+          <div className="hidden md:flex">
+            {renderNavbar()}
           </div>
+
+          {/* Mobile Menu Button */}
+          <button 
+            className="md:hidden text-gray-700 hover:text-blue-600"
+            onClick={() => setShowMobileMenu(!showMobileMenu)}
+          >
+            <i className={`fas ${showMobileMenu ? 'fa-times' : 'fa-bars'} text-2xl`}></i>
+          </button>
         </div>
+
+        {/* Mobile Menu */}
+        {showMobileMenu && (
+          <div className="md:hidden bg-white border-t border-gray-100 px-4 py-4">
+            {renderMobileMenu()}
+          </div>
+        )}
       </nav>
 
       <div className="container mx-auto px-4 pt-24 pb-12">
@@ -247,6 +424,9 @@ function SearchPage() {
                         src={building.building_photo || 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=600&h=400&fit=crop'}
                         alt={building.name}
                         className="w-full h-56 object-cover group-hover:scale-110 transition duration-700"
+                        onError={(e) => {
+                          e.target.src = 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=600&h=400&fit=crop';
+                        }}
                       />
                       <div className="absolute top-4 left-4 bg-green-500 text-white px-3 py-1 rounded-full text-sm font-semibold">
                         {vacantUnits.length} Available

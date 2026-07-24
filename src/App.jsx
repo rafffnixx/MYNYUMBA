@@ -13,9 +13,9 @@ import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
 import AdminLoginPage from './pages/auth/AdminLoginPage';
 import CustomerProfilePage from './pages/CustomerProfilePage';
-import BecomeAgentPage from './pages/BecomeAgentPage';
+import CustomerInquiriesPage from './pages/CustomerInquiriesPage';
 
-// Dashboard Pages
+// Dashboard Pages (Agent)
 import DashboardPage from './pages/dashboard/DashboardPage';
 import BuildingsPage from './pages/dashboard/BuildingsPage';
 import InquiriesPage from './pages/dashboard/InquiriesPage';
@@ -53,7 +53,7 @@ function App() {
           <Route element={<ProtectedRoute />}>
             <Route element={<PublicLayout />}>
               <Route path="/profile" element={<CustomerProfilePage />} />
-              <Route path="/become-agent" element={<BecomeAgentPage />} />
+              <Route path="/profile/inquiries" element={<CustomerInquiriesPage />} />
             </Route>
           </Route>
 
